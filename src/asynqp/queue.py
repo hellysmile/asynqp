@@ -104,7 +104,7 @@ class Queue(object):
         return consumer
 
     @asyncio.coroutine
-    def get(self, *, no_ack=False):
+    def get(self, *, no_ack=False, allow_empty=True):
         """
         Synchronously get a message from the queue.
 
@@ -119,7 +119,13 @@ class Queue(object):
             raise Deleted("Queue {} was deleted".format(self.name))
 
         self.sender.send_BasicGet(self.name, no_ack)
-        has_message = yield from self.synchroniser.await(spec.BasicGetOK, spec.BasicGetEmpty)
+
+        if allow_empty:
+            implementation = spec.BasicGetEmpty
+        else:
+            implementation = spec.BasicGet
+
+        has_message = yield from self.synchroniser.await(spec.BasicGetOK, implementation)
 
         if has_message:
             yield from self.synchroniser.await(frames.ContentHeaderFrame)
